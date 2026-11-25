@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f0f2f5;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        overflow: hidden;
+      }
+      .card {
+        background: #ffffff;
+        padding: 35px 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        width: 100%;
+        max-width: 380px;
+        text-align: center;
+      }
+      h2 { color: #1a252f; margin-top: 0; margin-bottom: 10px; }
+      p { color: #666; font-size: 14px; margin-bottom: 25px; }
+      input[type="text"] {
+        width: 100%; padding: 12px; margin-bottom: 15px;
+        border: 2px solid #ccc; border-radius: 6px;
+        font-size: 16px; text-align: center; text-transform: uppercase; outline: none;
+      }
+      input[type="text"]:focus { border-color: #0056b3; }
+      button {
+        width: 100%; padding: 12px; background-color: #0056b3; color: white;
+        border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer;
+      }
+      button:hover { background-color: #004085; }
+      button:disabled { background-color: #a0a0a0; cursor: not-allowed; }
+      .error { color: #d9534f; font-size: 14px; margin-top: 15px; display: none; font-weight: bold; }
+      .loading { color: #0056b3; font-size: 14px; margin-top: 15px; display: none; }
+
+      .exam-layout {
+        display: flex;
+        width: 100vw;
+        height: 100vh;
+        background: #ffffff;
+      }
+      .enunciado-col {
+        width: 42%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        border-right: 2px solid #d0d7de;
+        background: #ffffff;
+      }
+      .alumno-banner {
+        background: #1a252f;
+        color: #ffffff;
+        padding: 10px 16px;
+        font-size: 13px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .alumno-banner span strong {
+        color: #7cc4fa;
+      }
+      .timer-badge {
+        background: #2b3b4e;
+        color: #ffffff;
+        padding: 5px 12px;
+        border-radius: 6px;
+        font-weight: bold;
+        font-size: 14px;
+        font-variant-numeric: tabular-nums;
+        border: 1px solid #48607d;
+      }
+      .timer-warning {
+        background: #dc2626 !important;
+        border-color: #fca5a5 !important;
+        animation: pulseWarning 1s infinite;
+      }
+      @keyframes pulseWarning {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.75; }
+      }
+      .enunciado-body {
+        padding: 24px;
+        overflow-y: auto;
+        flex: 1;
+        color: #1f2328;
+        line-height: 1.6;
+        font-size: 15px;
+      }
+      .enunciado-body h3 {
+        margin-top: 0;
+        color: #0056b3;
+        border-bottom: 1px solid #e5e7eb;
+        padding-bottom: 8px;
+      }
+      .form-col {
+        width: 58%;
+        height: 100%;
+        background: #f0ebf8;
+        display: flex;
+        flex-direction: column;
+      }
+      .aviso-tiempo {
+        display: none;
+        background: #dc2626;
+        color: #ffffff;
+        padding: 10px 16px;
+        text-align: center;
+        font-size: 14px;
+        font-weight: bold;
+      }
+      .form-col iframe {
+        width: 100%;
+        flex: 1;
+        border: none;
+      }
+      .tiempo-agotado-box {
+        margin: auto;
+        background: #ffffff;
+        padding: 40px 32px;
+        border-radius: 10px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+        max-width: 440px;
+        text-align: center;
+      }
+      .tiempo-agotado-box h2 {
+        color: #dc2626;
+        margin-bottom: 12px;
+      }
+      .tiempo-agotado-box p {
+        color: #333;
+        font-size: 15px;
+        line-height: 1.5;
+        margin-bottom: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card" id="mainCard">
+      <h2>Acceso al Examen</h2>
+      <p id="subtituloAcceso">Verificando entorno de acceso...</p>
+      
+      <input type="text" id="codigo" placeholder="EJ: IDDII-88267" autocomplete="off" disabled onkeypress="if(event.key==='Enter') validar()" />
+      <button id="btnIngresar" onclick="validar()" disabled>Verificando...</button>
+      
+      <div id="loading" class="loading">Validando código y cargando examen...</div>
+      <div id="error" class="error"></div>
+    </div>
+
+    <script>
+      var intervaloCronometro = null;
+
+      function bloquearAcceso(detalle) {
+        document.body.innerHTML = `
+          <div class="card">
+            <h2 style="color: #d9534f;">⚠️ Acceso Denegado</h2>
+            <p style="color: #333; font-size: 15px; line-height: 1.4;">
+              Esta evaluación solo puede realizarse utilizando el archivo oficial y una versión sin modificar de <strong>Safe Exam Browser</strong>.
+            </p>
+            <p style="color: #777; font-size: 12px;">Detalle: ${detalle}</p>
+          </div>
+        `;
+      }
+
+      function habilitarFormularioAcceso() {
+        document.getElementById('subtituloAcceso').innerText = "Ingresa tu código único para acceder a la evaluación.";
+        var input = document.getElementById('codigo');
+        var btn = document.getElementById('btnIngresar');
+        input.disabled = false;
+        btn.disabled = false;
+        btn.innerText = "Ingresar";
+        input.focus();
+      }
+
+      function formatearTiempo(segundosTotales) {
+        var hrs = Math.floor(segundosTotales / 3600);
+        var mins = Math.floor((segundosTotales % 3600) / 60);
+        var secs = segundosTotales % 60;
+        var mm = (mins < 10 ? "0" : "") + mins;
+        var ss = (secs < 10 ? "0" : "") + secs;
+        if (hrs > 0) {
+          var hh = (hrs < 10 ? "0" : "") + hrs;
+          return hh + ":" + mm + ":" + ss;
+        }
+        return mm + ":" + ss;
+      }
+
+      function iniciarCronometro(duracionMinutos) {
+        var badge = document.getElementById('timerBadge');
+        if (!badge || !duracionMinutos || duracionMinutos <= 0) {
+          if (badge) badge.style.display = "none";
+          return;
+        }
+
+        var segundosRestantes = duracionMinutos * 60;
+        badge.innerText = "⏱️ " + formatearTiempo(segundosRestantes);
+
+        intervaloCronometro = setInterval(function() {
+          segundosRestantes--;
+
+          if (segundosRestantes <= 0) {
+            clearInterval(intervaloCronometro);
+            badge.innerText = "⏱️ 00:00";
+            badge.classList.add("timer-warning");
+
+            var formCol = document.getElementById('formCol');
+            if (formCol) {
+              formCol.innerHTML = `
+                <div class="tiempo-agotado-box">
+                  <h2>⏰ Tiempo Finalizado</h2>
+                  <p>
+                    Se ha cumplido el tiempo máximo establecido para esta evaluación (${duracionMinutos} minutos).
+                    El formulario ha sido cerrado automáticamente.
+                  </p>
+                </div>
+              `;
+            }
+            return;
+          }
+
+          badge.innerText = "⏱️ " + formatearTiempo(segundosRestantes);
+
+          if (segundosRestantes <= 300) {
+            badge.classList.add("timer-warning");
+            var aviso = document.getElementById('avisoTiempo');
+            if (aviso) aviso.style.display = "block";
+          }
+        }, 1000);
+      }
+
+      document.addEventListener("DOMContentLoaded", function() {
+        var uaActual = navigator.userAgent || "";
+        var urlActual = window.location.href;
+
+        function enviarValidacion(bek, ck) {
+          var refTop = document.referrer || "";
+          google.script.run
+            .withSuccessHandler(function(res) {
+              if (res && res.ok) {
+                habilitarFormularioAcceso();
+              } else {
+                bloquearAcceso((res && res.motivo) || "Navegador no autorizado.");
+              }
+            })
+            .withFailureHandler(function(err) {
+              bloquearAcceso("Error de servidor: " + (err.message || err));
+            })
+            .validarEntornoSEB(urlActual, bek, ck, uaActual, refTop);
+        }
+
+        if (typeof window.SafeExamBrowser !== "undefined" && window.SafeExamBrowser.security) {
+          var bek = window.SafeExamBrowser.security.browserExamKey || "";
+          var ck = window.SafeExamBrowser.security.configKey || "";
+
+          if (bek || ck) {
+            enviarValidacion(bek, ck);
+          } else if (typeof window.SafeExamBrowser.security.updateKeys === "function") {
+            window.SafeExamBrowser.security.updateKeys(function() {
+              enviarValidacion(
+                window.SafeExamBrowser.security.browserExamKey || "",
+                window.SafeExamBrowser.security.configKey || ""
+              );
+            });
+          } else {
+            enviarValidacion("", "");
+          }
+        } else {
+          enviarValidacion("", "");
+        }
+      });
+
+      function validar() {
+        var codigo = document.getElementById('codigo').value.trim();
+        var btn = document.getElementById('btnIngresar');
+        var errorDiv = document.getElementById('error');
+        var loadingDiv = document.getElementById('loading');
+        
+        if (!codigo) {
+          errorDiv.innerText = "Por favor, ingresa un código.";
+          errorDiv.style.display = "block";
+          return;
+        }
+
+        errorDiv.style.display = "none";
+        loadingDiv.style.display = "block";
+        btn.disabled = true;
+
+        google.script.run
+          .withSuccessHandler(function(response) {
+            loadingDiv.style.display = "none";
+            if (response.success) {
+              var infoNombre = response.alumno.nombre ? `<span>Alumno: <strong>${response.alumno.nombre}</strong></span>` : "";
+              var infoLU = response.alumno.lu ? `<span>LU: <strong>${response.alumno.lu}</strong></span>` : "";
+              var infoToken = response.alumno.token ? `<span>Sesión: <strong>${response.alumno.token}</strong></span>` : "";
+              var tituloEnunciado = (response.enunciado && response.enunciado.titulo) || "Enunciado del Examen";
+              var cuerpoEnunciado = (response.enunciado && response.enunciado.html) || "";
+
+              document.body.innerHTML = `
+                <div class="exam-layout">
+                  <div class="enunciado-col">
+                    <div class="alumno-banner">
+                      ${infoNombre}
+                      ${infoLU}
+                      ${infoToken}
+                      <div id="timerBadge" class="timer-badge"></div>
+                    </div>
+                    <div class="enunciado-body">
+                      <h3>${tituloEnunciado}</h3>
+                      ${cuerpoEnunciado}
+                    </div>
+                  </div>
+                  <div class="form-col" id="formCol">
+                    <div id="avisoTiempo" class="aviso-tiempo">
+                      ⚠️ Quedan menos de 5 minutos. Haz clic en "Enviar" al final del formulario antes de que se cierre.
+                    </div>
+                    <iframe src="${response.url}">Cargando formulario...</iframe>
+                  </div>
+                </div>
+              `;
+
+              iniciarCronometro(response.duracionMinutos);
+            } else {
+              errorDiv.innerText = response.message;
+              errorDiv.style.display = "block";
+              btn.disabled = false;
+            }
+          })
+          .withFailureHandler(function(err) {
+            loadingDiv.style.display = "none";
+            errorDiv.innerText = "Error de conexión: " + (err.message || JSON.stringify(err));
+            errorDiv.style.display = "block";
+            btn.disabled = false;
+          })
+          .validarYObtenerLink(codigo);
+      }
+    </script>
+  </body>
+</html>
