@@ -1,0 +1,51 @@
+# Entorno local completo: base de datos + capturador de mails + app.
+#   docker compose up --build
+# App:     http://localhost:3000        (alumnos)
+#          http://localhost:3000/admin  (docente)
+# Mails:   http://localhost:8025        (Mailpit: ver los mails enviados)
+#
+# Los valores salen del archivo .env (copiar .env.example a .env).
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: examenes
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - datos-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d examenes"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  mail:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+      mail:
+        condition: service_started
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/examenes
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Definí ADMIN_PASSWORD en .env}
+      SESSION_SECRET: ${SESSION_SECRET:?Definí SESSION_SECRET en .env (32+ caracteres)}
+      SMTP_HOST: mail
+      SMTP_PORT: "1025"
+      MAIL_FROM: ${MAIL_FROM:-Examenes <examenes@localhost>}
+
+volumes:
+  datos-db:

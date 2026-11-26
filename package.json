@@ -1,0 +1,43 @@
+{
+  "name": "examenes",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "node .next/standalone/server.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "migrate": "node --env-file-if-exists=.env scripts/migrate.mjs",
+    "e2e": "node --env-file-if-exists=.env tests/e2e/flujo-completo.mjs"
+  },
+  "dependencies": {
+    "@tiptap/extension-table": "^3.35.0",
+    "@tiptap/pm": "^3.35.0",
+    "@tiptap/react": "^3.35.0",
+    "@tiptap/starter-kit": "^3.35.0",
+    "html-to-pdfmake": "2.5",
+    "jsdom": "^26.1.0",
+    "marked": "^16.4.2",
+    "next": "16.4.6",
+    "nodemailer": "^10.6.1",
+    "pdfmake": "^0.2.23",
+    "postgres": "^3.4.7",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "sanitize-html": "^2.18.2"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^30.0.0",
+    "@types/node": "^22.20.7",
+    "@types/pdfmake": "^0.2.13",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/sanitize-html": "^2.16.2",
+    "typescript": "^5",
+    "vitest": "^5.1.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

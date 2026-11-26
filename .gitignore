@@ -1,0 +1,29 @@
+# Dependencias y build
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# Secretos: NUNCA al repo
+.env
+.env.*
+!.env.example
+
+# Supabase CLI (estado local)
+supabase/.branches
+supabase/.temp
+
+# Datos reales de alumnos o exámenes: NUNCA al repo (es público)
+*.xlsx
+*.xls
+datos/
+privado/
+
+# Varios
+*.log
+.DS_Store
+.vercel
+tests/e2e/capturas/
+falla-*.png
