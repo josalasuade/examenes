@@ -1,9 +1,34 @@
 # Especificación — Plataforma de Exámenes Digitales (UADE)
 
-> Versión 0.1 — 2026-11-26. Surge del análisis del sistema GAS actual
+> Versión 0.2 — 2026-11-26. Surge del análisis del sistema GAS actual
 > (repo `josalasuade/examenes`: `code.gs`, `Forms.gs`, `index.html`) y de las
 > definiciones acordadas con el docente. Los puntos marcados **[ABIERTO]** no
 > están decididos todavía.
+>
+> **Cambios en 0.2**: desarrollo local primero (Docker + Supabase local) y
+> producción después; código de ingreso compartido con ventana de validez
+> (confirmado); mail enviado desde la cuenta Google institucional del docente;
+> **la corrección con IA pasa a la Etapa 2** (ver sección 0).
+
+## 0. Etapas
+
+**Etapa 1 — sin corrección con IA**
+
+- Carga de exámenes, temas, casos, consignas y rúbricas.
+- Carga de alumnos y asignación de tema y parte.
+- Rendición en SEB (con excepción individual sin SEB), autoguardado,
+  reingreso aprobado por el docente, contador en el servidor.
+- Monitoreo de pegados y salidas de ventana.
+- Entrega definitiva, PDF y **mail al alumno con el PDF adjunto, nada más**.
+- Panel del docente: en vivo, nota final manual y exportación CSV.
+
+**Etapa 2 — IA** (el proveedor se define llegado el momento)
+
+- Corrección automática con rúbrica, rango de nota y feedback (secciones 9 y
+  10).
+- **[ABIERTO]** Generación de temas con IA a partir de los HTML de las clases:
+  ¿Etapa 1 o Etapa 2? Si queda en la Etapa 2, en la Etapa 1 el docente carga
+  los casos y consignas a mano o por importación.
 
 ## 1. Objetivo
 
@@ -20,9 +45,10 @@ corrección manual pegando respuestas en un chat de IA) por una plataforma
 4. **Cierre**: el docente revisa, define la nota final y exporta para cargarla
    en el sistema de UADE.
 
-**Principio pedagógico**: el alumno no demuestra memoria de conceptos sino su
-capacidad de **analizar el contexto del caso y razonar** decisiones
-justificadas. Todos los exámenes tienen caso.
+**Principio pedagógico**: el alumno debe demostrar **comprensión del contexto
+y conocimiento**, aplicados al caso, y no responder de memoria. Las consignas
+piden analizar el caso y razonar decisiones justificadas. Todos los exámenes
+tienen caso.
 
 ## 2. Usuarios
 
@@ -91,14 +117,17 @@ Examen  (materia, docente, instancia, fecha, duración, consignas generales,
 ## 5. Ingreso e identidad
 
 - **Sin control por IP ni red** (descartado).
-- **[ABIERTO] Código de ingreso**: el docente propone **un código único por
-  examen, igual para todos**. El alumno se identifica con código + LU.
-  Riesgo: un alumno podría ingresar con el LU de un compañero. Mitigaciones
-  propuestas:
-  - el código solo funciona mientras el docente tiene el examen **abierto**;
-  - **una sola sesión activa por LU**: si el LU ya tiene sesión, el segundo
-    ingreso queda bloqueado y se avisa al docente;
-  - el panel muestra en vivo quién ingresó, con hora.
+- **Código de ingreso (confirmado)**: **un código por examen, igual para
+  todos**. El alumno se identifica con código + LU.
+  - El docente dicta el código en el aula **recién cuando todos abrieron SEB o
+    el link**.
+  - El código tiene una **ventana de validez** que el docente abre desde el
+    panel (por ejemplo, 10 minutos, configurable). Fuera de esa ventana no
+    sirve.
+  - **Una sola sesión activa por LU**: si alguien ingresa con el LU de un
+    compañero, el verdadero no puede entrar, el docente lo ve en el momento y
+    lo resuelve desde el panel.
+  - El panel muestra en vivo quién ingresó, con hora.
 - **Token de dispositivo**: al primer ingreso se emite un token que identifica
   la sesión. SEB se configura para no borrar el almacenamiento.
 - **Reingreso** (cuelgue, reinicio, cambio de equipo): **solo con aprobación
@@ -149,7 +178,7 @@ controla el docente en el aula).
 - **Pantalla de confirmación**: "Entrega recibida el DD/MM/AAAA a las HH:MM"
   + botón para descargar el PDF.
 
-## 9. Corrección con IA
+## 9. Corrección con IA — ETAPA 2
 
 - **Proveedor [ABIERTO]**: configurable. Llamada directa desde el backend (sin
   n8n, que suma un servicio para hospedar).
@@ -169,13 +198,23 @@ controla el docente en el aula).
 
 ## 10. Mail al alumno
 
-- Envío **automático** apenas termina la corrección de la IA (sin revisión
-  previa del docente; decisión aceptada).
-- Contenido: rango de nota, leyenda "el docente revisará tu examen para
-  definir la nota final", feedback y **PDF adjunto**.
-- Requiere un servicio de envío de mails con plan gratuito (60 mails por
-  examen alcanza). **[ABIERTO]** dominio remitente (ideal dominio propio para
-  no caer en spam).
+- **Etapa 1**: al entregar se envía automáticamente un mail con el **PDF
+  adjunto**, nada más.
+- **Etapa 2**: el mail sale apenas termina la corrección de la IA (sin
+  revisión previa del docente; decisión aceptada) y agrega rango de nota,
+  leyenda "el docente revisará tu examen para definir la nota final" y
+  feedback.
+- **Remitente**: la cuenta Google institucional del docente (Google
+  Workspace de UADE). La dirección se configura por variable de entorno, no en
+  el código. Opciones técnicas, a verificar:
+  - SMTP de Gmail con **contraseña de aplicación** (requiere verificación en
+    dos pasos, y que el administrador del Workspace de UADE no haya
+    deshabilitado las contraseñas de aplicación);
+  - **API de Gmail** con OAuth.
+  Verificar también el límite diario de envío del Workspace (60 mails por
+  examen deberían estar muy por debajo).
+- Cola con reintentos: si un envío falla, se reintenta y el panel lo
+  muestra.
 
 ## 11. PDF del examen
 
@@ -208,7 +247,19 @@ UADE:
 
 ## 13. Arquitectura y hosting
 
-- **Vercel** (frontend + API) + **Supabase** (Postgres + login del docente).
+### Desarrollo (primero)
+
+- Todo corre **local**: la app en **Docker** y **Supabase local** (el CLI de
+  Supabase levanta el stack completo en Docker; verificar la versión vigente).
+- Migraciones de base y configuración versionadas en el repo; avances
+  subidos al repo en forma continua.
+- Los secretos locales van en `.env`, que **no** se commitea; el repo incluye
+  un `.env.example` solo con los nombres.
+
+### Producción (cuando esté lista)
+
+- **Vercel** (frontend + API) + **Supabase** online (Postgres + login del
+  docente). Se aplican las mismas migraciones del repo.
 - El navegador del alumno **nunca** habla directo con la base: todo pasa por la
   API, que valida SEB, sesión y tiempo.
 - Uso estacional (dos semanas de exámenes cada ~3 meses): aceptable que el
@@ -225,9 +276,10 @@ UADE:
 
 ## 14. Pendientes [ABIERTO]
 
-1. Confirmar el esquema de ingreso: código compartido + LU (sección 5).
-2. Proveedor de IA.
-3. Dominio remitente y servicio de mails.
+1. Generación de temas con IA: ¿Etapa 1 o Etapa 2? (sección 0).
+2. Proveedor de IA (Etapa 2).
+3. Envío de mail: SMTP con contraseña de aplicación o API de Gmail; verificar
+   qué permite el Workspace de UADE (sección 10).
 4. Logo en mayor resolución (opcional).
 
 ## 15. Seguridad y datos
