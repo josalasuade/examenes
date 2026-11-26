@@ -1,0 +1,5 @@
+lu;nombre;mail;tema;parte;sin_seb
+1000001;Alumna Prueba Uno;uno@ejemplo.test;1;A;no
+1000002;Alumno Prueba Dos;dos@ejemplo.test;1;B;si
+1000003;Alumna Prueba Tres;tres@ejemplo.test;2;;no
+1000004;Alumno Prueba Cuatro;cuatro@ejemplo.test;2;;no
