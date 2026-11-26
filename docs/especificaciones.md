@@ -1,14 +1,18 @@
 # Especificación — Plataforma de Exámenes Digitales (UADE)
 
-> Versión 0.2 — 2026-11-26. Surge del análisis del sistema GAS actual
-> (repo `josalasuade/examenes`: `code.gs`, `Forms.gs`, `index.html`) y de las
+> Versión 0.3 — 2026-11-26. Surge del análisis del sistema GAS actual
+> (carpeta `GAS/`: `code.gs`, `Forms.gs`, `index.html`) y de las
 > definiciones acordadas con el docente. Los puntos marcados **[ABIERTO]** no
 > están decididos todavía.
+>
+> **Cambios en 0.3**: Etapa 1 implementada (ver sección 16). Toda la
+> generación con IA pasa a la Etapa 2. Decisiones de implementación
+> registradas en la sección 16.
 >
 > **Cambios en 0.2**: desarrollo local primero (Docker + Supabase local) y
 > producción después; código de ingreso compartido con ventana de validez
 > (confirmado); mail enviado desde la cuenta Google institucional del docente;
-> **la corrección con IA pasa a la Etapa 2** (ver sección 0).
+> la corrección con IA pasa a la Etapa 2.
 
 ## 0. Etapas
 
@@ -24,11 +28,11 @@
 
 **Etapa 2 — IA** (el proveedor se define llegado el momento)
 
+- Generación de temas con IA a partir de los HTML de las clases (decidido:
+  Etapa 2). En la Etapa 1 el docente importa los temas en Markdown
+  (`docs/FORMATO_IMPORTACION.md`) y los edita en el panel.
 - Corrección automática con rúbrica, rango de nota y feedback (secciones 9 y
   10).
-- **[ABIERTO]** Generación de temas con IA a partir de los HTML de las clases:
-  ¿Etapa 1 o Etapa 2? Si queda en la Etapa 2, en la Etapa 1 el docente carga
-  los casos y consignas a mano o por importación.
 
 ## 1. Objetivo
 
@@ -276,8 +280,8 @@ UADE:
 
 ## 14. Pendientes [ABIERTO]
 
-1. Generación de temas con IA: ¿Etapa 1 o Etapa 2? (sección 0).
-2. Proveedor de IA (Etapa 2).
+1. Proveedor de IA (Etapa 2).
+2. Probar la validación de SEB con un `.seb` real (sección 16).
 3. Envío de mail: SMTP con contraseña de aplicación o API de Gmail; verificar
    qué permite el Workspace de UADE (sección 10).
 4. Logo en mayor resolución (opcional).
@@ -289,3 +293,43 @@ UADE:
   público: **cambiarlas**.
 - Secretos (API de IA, Supabase, mails) solo en variables de entorno de
   Vercel, nunca en el código.
+
+## 16. Implementación de la Etapa 1 (estado y decisiones)
+
+Implementada y probada en local (Docker): pruebas unitarias y una prueba de
+punta a punta que recorre el flujo completo (ver README). **Falta probar con
+SEB real, Supabase y Gmail reales** (ver `docs/DESPLIEGUE.md`).
+
+Decisiones tomadas al implementar:
+
+- **Login del docente**: una contraseña (`ADMIN_PASSWORD`) y una cookie
+  firmada, en lugar de Supabase Auth. Hay un solo docente y así no depende de
+  un servicio más. Si en el futuro hay más docentes, se migra a Supabase Auth.
+- **Stack**: Next.js 16 (interfaz + API) + Postgres. Local: Postgres en
+  Docker (equivalente al de Supabase; las migraciones en `supabase/migrations`
+  sirven para ambos) y Mailpit para ver los mails.
+- **Importación**: temas en Markdown, alumnos en CSV. Edición posterior en el
+  panel (casos, consignas, rúbricas).
+- **Código de ingreso**: el panel abre la ventana de ingreso por N minutos (10
+  por defecto). El primer ingreso exige la ventana abierta; un segundo ingreso
+  con el mismo LU genera una **solicitud de reingreso** que el docente aprueba
+  o rechaza. Aprobar cierra la sesión anterior.
+- **"Reiniciar"** (panel en vivo): si alguien ingresó con el LU de otro, el
+  docente reinicia ese examen (borra respuestas y tiempo) y el verdadero alumno
+  vuelve a entrar con la ventana de ingreso.
+- **Contenido congelado**: al publicar, temas y consignas no se pueden
+  editar. Se puede volver a borrador solo si ningún alumno empezó.
+- **Salidas de ventana**: las menores a 2 segundos se muestran aparte como
+  "cortas" (notificaciones del sistema).
+- **Inserción sin tecleo**: se registra cuando una respuesta crece más de 80
+  caracteres por encima de lo tecleado y pegado entre dos autoguardados.
+- **Pegados**: se guarda una muestra de hasta 500 caracteres del texto pegado,
+  para que el docente pueda verlo.
+- **No se guardan IPs** (no se usan para control y no son datos necesarios).
+- **Hora de entrega por vencimiento**: si el examen se entrega solo por
+  tiempo, se registra la hora de vencimiento, no la hora en que se detectó.
+- **Nota final**: el docente carga el puntaje 0–100; la nota 1–10 se calcula
+  con la escala del examen. El CSV para UADE trae ambos.
+- **Base en Supabase**: RLS activado en todas las tablas sin políticas (la API
+  REST pública no puede leer nada).
+
